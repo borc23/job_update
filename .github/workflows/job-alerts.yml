@@ -42,7 +42,7 @@ jobs:
             exit 1
           fi
       - run: pip install --require-hashes -r requirements.txt
-      - run: python main.py
+      - run: python -m job_alerts
         env:
           NOTIFY_URL: ${{ secrets.NOTIFY_URL }}
       - name: Did seen.txt change?

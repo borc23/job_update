@@ -1,0 +1,11 @@
+[project]
+name = "job-alerts"
+version = "0.1.0"
+description = "Send new Indeed.nl jobs matching config.toml to Telegram (or any Apprise channel)."
+requires-python = ">=3.12"
+# requirements.txt locks these and everything they pull in, with hashes. After editing them, regenerate it:
+#   uv pip compile pyproject.toml --universal --python-version 3.12 --generate-hashes -o requirements.txt
+dependencies = [
+    "python-jobspy==1.1.82",
+    "apprise==2.0.0",
+]

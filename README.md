@@ -2,7 +2,20 @@
 
 Checks Indeed.nl every 2 hours for AI / Machine Learning / Python jobs around Rotterdam, Den Haag, Utrecht, Amsterdam and Eindhoven, and sends each new posting to Telegram.
 
-[JobSpy](https://github.com/speedyapply/JobSpy) does the searching and [Apprise](https://github.com/caronc/apprise) the messaging, so `main.py` stays small.
+[JobSpy](https://github.com/speedyapply/JobSpy) does the searching and [Apprise](https://github.com/caronc/apprise) the messaging, so the code stays small:
+
+```
+job_alerts/        the app; run it with `python -m job_alerts`
+  app.py           the run: fetch the jobs, send the new ones, remember what was sent
+  core/            the building blocks app.py wires together
+    jobs.py        fetching from Indeed (JobSpy)
+    notify.py      one message per job, and sending it
+    salary.py      the salary, from Indeed's fields or the job description (no I/O)
+    seen.py        seen.txt: the jobs already sent
+tests/             one test file per module, plus shared fakes
+config.toml        what to search for and where
+pyproject.toml     project metadata and dependencies; requirements.txt is their lockfile
+```
 
 ## Configure
 
@@ -26,7 +39,7 @@ The schedule is the `cron` line in [.github/workflows/job-alerts.yml](.github/wo
 - If a run fails (e.g. Indeed blocks the search or the Telegram token is wrong), GitHub emails you.
 - `NOTIFY_URL` accepts any [Apprise URL](https://github.com/caronc/apprise/wiki) (WhatsApp, email, Discord, ...); separate several with commas.
 - The workflow has two jobs: `check` runs the scraper with a read-only token, and `commit` pushes `seen.txt` with nothing but git. GitHub bills each job in whole minutes, so a run costs at least 1 minute, plus 1 when there's something new to commit. At 12 runs a day that's up to about 730 of the 2,000 free minutes/month for private repos while `check` stays under a minute, or about 1,100 if it takes 2.
-- `requirements.txt` is a lockfile: every package with its hash, so a tampered or swapped download fails the install. To change dependencies, edit `requirements.in` and regenerate it with the command at the top of that file.
+- `requirements.txt` is a lockfile: every package with its hash, so a tampered or swapped download fails the install. To change dependencies, edit them in `pyproject.toml` and regenerate the lockfile with the command noted there.
 
 ## Run locally
 
@@ -34,7 +47,7 @@ The schedule is the `cron` line in [.github/workflows/job-alerts.yml](.github/wo
 python -m venv .venv
 .venv\Scripts\pip install -r requirements.txt
 $env:NOTIFY_URL = Read-Host "Notify URL"  # paste it here, keeps the token out of shell history
-.venv\Scripts\python main.py
+.venv\Scripts\python -m job_alerts
 ```
 
-Tests: `.venv\Scripts\python -m unittest`. Add a case to `SalaryInText.CASES` in [test_main.py](test_main.py) whenever a posting's salary comes out wrong.
+Tests: `.venv\Scripts\python -m unittest`. Add a case to `FromText.CASES` in [tests/test_salary.py](tests/test_salary.py) whenever a posting's salary comes out wrong.
