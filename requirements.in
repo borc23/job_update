@@ -1,0 +1,6 @@
+# What main.py uses directly. requirements.txt locks these and everything they pull in, with hashes;
+# after editing this file, regenerate it with:
+#   uv pip compile requirements.in --universal --python-version 3.12 --generate-hashes -o requirements.txt
+python-jobspy==1.1.82
+apprise==2.0.0
+pandas

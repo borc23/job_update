@@ -2,34 +2,95 @@ name: Job alerts
 
 on:
   schedule:
-    - cron: "17 * * * *"  # hourly; an off-peak minute starts more reliably than :00
+    - cron: "17 */2 * * *"  # every 2 hours (UTC); an off-peak minute starts more reliably than :00
   workflow_dispatch:      # adds a "Run workflow" button for manual runs
 
-permissions:
-  contents: write         # lets the run commit seen.txt
+permissions: {}           # each job asks for only what it needs
 
-concurrency: job-alerts   # one run at a time, so seen.txt never conflicts
+concurrency: job-alerts   # one run at a time, so runs never race on the state branch
 
+# Actions are pinned to commit SHAs (tags can be moved); the comment says which release that is.
 jobs:
   check:
+    # Runs the third-party scraping code, so it only gets a read-only token, kept out of .git/config
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      changed: ${{ steps.changed.outputs.changed }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install -r requirements.txt
+      - name: Load seen.txt from the state branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh api "repos/$GITHUB_REPOSITORY/contents/seen.txt?ref=state" \
+              -H "Accept: application/vnd.github.raw" > seen.txt 2> "$RUNNER_TEMP/gh-error"; then
+            cp seen.txt "$RUNNER_TEMP/seen-before.txt"
+            echo "Loaded $(wc -l < seen.txt) seen jobs"
+          elif grep -q "HTTP 404" "$RUNNER_TEMP/gh-error"; then
+            rm seen.txt
+            echo "No state branch yet: this run records the current jobs without sending them"
+          else
+            cat "$RUNNER_TEMP/gh-error" >&2
+            exit 1
+          fi
+      - run: pip install --require-hashes -r requirements.txt
       - run: python main.py
         env:
           NOTIFY_URL: ${{ secrets.NOTIFY_URL }}
-      - name: Commit seen.txt
+      - name: Did seen.txt change?
+        id: changed
         if: always()      # also after partial failures, so sent jobs are not re-sent
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ -f seen.txt ] && ! cmp -s seen.txt "$RUNNER_TEMP/seen-before.txt"; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        if: always() && steps.changed.outputs.changed == 'true'
+        with:
+          name: seen
+          path: seen.txt
+          retention-days: 1
+
+  commit:
+    # Pushes seen.txt to the state branch, so main only gets your commits. Runs nothing but git.
+    needs: check
+    if: always() && needs.check.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: seen
+          path: ${{ runner.temp }}/seen
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - name: Commit seen.txt to the state branch
+        run: |
+          new="$RUNNER_TEMP/seen/seen.txt"
+          # It comes from the job that ran third-party code, so accept only "<job id><TAB><date>" lines
+          if grep -Evq $'^[A-Za-z0-9_.-]+\t[0-9]{4}-[0-9]{2}-[0-9]{2}$' "$new"; then
+            echo "::error::seen.txt has unexpected content, not committing it"
+            exit 1
+          fi
+          found=0
+          git ls-remote --exit-code --heads origin state > /dev/null || found=$?
+          case $found in
+            0) git fetch --quiet --depth=1 origin state && git switch --quiet -C state FETCH_HEAD ;;
+            2) git switch --quiet --orphan state ;;  # first run: start the branch
+            *) exit "$found" ;;
+          esac
+          cp "$new" seen.txt
           git add seen.txt
           git diff --cached --quiet && exit 0
-          git commit -m "Update seen jobs"
-          git pull --rebase
-          git push
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit --quiet -m "Update seen jobs"
+          git push --quiet origin HEAD:state
