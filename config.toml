@@ -1,0 +1,17 @@
+# Passed straight to JobSpy's scrape_jobs(); any of its parameters can be added here:
+# https://github.com/speedyapply/JobSpy#parameters-for-scrape_jobs
+[search]
+site_name = "indeed"
+country_indeed = "netherlands"
+# Indeed syntax: title:(...) matches job titles only; also OR, "exact phrase", -exclude
+search_term = 'title:(AI OR "artificial intelligence" OR "kunstmatige intelligentie" OR "machine learning" OR ML OR MLOps OR LLM OR GenAI OR "generative AI" OR "deep learning" OR NLP OR "computer vision" OR python OR "data science" OR "data scientist" OR "data engineer" OR "AI engineer")'
+hours_old = 72        # only jobs posted in the last 3 days
+results_wanted = 100  # max jobs per city per run
+
+# City = search radius in km
+[locations]
+Rotterdam = 25        # incl. Delft, Schiedam, Zoetermeer, Capelle, Dordrecht
+"Den Haag" = 10
+Utrecht = 10
+Amsterdam = 10
+Eindhoven = 10
