@@ -43,11 +43,13 @@ The schedule is the `cron` line in [.github/workflows/job-alerts.yml](.github/wo
 
 ## Run locally
 
-```powershell
-python -m venv .venv
-.venv\Scripts\pip install -r requirements.txt
-$env:NOTIFY_URL = Read-Host "Notify URL"  # paste it here, keeps the token out of shell history
-.venv\Scripts\python -m job_alerts
+On Ubuntu (needs Python 3.12+; `sudo apt install python3-venv` if `venv` is missing):
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+read -rsp "Notify URL: " NOTIFY_URL && export NOTIFY_URL && echo  # paste it here, hidden and kept out of shell history
+.venv/bin/python -m job_alerts
 ```
 
-Tests: `.venv\Scripts\python -m unittest`. Add a case to `FromText.CASES` in [tests/test_salary.py](tests/test_salary.py) whenever a posting's salary comes out wrong.
+Tests: `.venv/bin/python -m unittest`. Add a case to `FromText.CASES` in [tests/test_salary.py](tests/test_salary.py) whenever a posting's salary comes out wrong.
