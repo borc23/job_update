@@ -31,11 +31,17 @@ def message(job) -> str:
         "📍": escape(job.location),
         "💶": pay or salary.from_text(job.description or ""),
         "💼": job_types,
+        "📅": posted(job.date_posted),
     }
     return "<br>".join(
         [f"{icon} {value}" for icon, value in details.items() if value]
         + [f'<a href="{html.escape(job.job_url)}">View on Indeed →</a>']
     )
+
+
+def posted(day) -> str:
+    """When the job was posted, e.g. 'Posted 1 Oct 2026'. JobSpy only keeps the date from Indeed, not the time."""
+    return f"Posted {day.day} {day:%b %Y}" if day else ""
 
 
 def escape(value) -> str:

@@ -2,7 +2,7 @@
 
 from types import SimpleNamespace
 
-FIELDS = "title company location job_type description min_amount max_amount interval currency".split()
+FIELDS = "title company location job_type description min_amount max_amount interval currency date_posted".split()
 
 
 def job(job_id: str, **fields) -> SimpleNamespace:
